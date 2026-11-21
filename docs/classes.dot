@@ -1,0 +1,53 @@
+digraph LogiCore {
+ graph [rankdir=TB, fontname="DejaVu Sans", bgcolor="white", nodesep=0.28, ranksep=0.65, pad=0.3];
+ node [shape=record, fontname="DejaVu Sans", fontsize=11, color="#64748b", margin="0.12,0.08"];
+ edge [fontname="DejaVu Sans", fontsize=9, color="#475569", arrowsize=0.75];
+ subgraph cluster_cargo {
+  label="Иерархия грузов"; fontname="DejaVu Sans"; color="#cbd5e1";
+  Cargo [label="{«abstract» Cargo|Id; Description; WeightKg; VolumeM3; DeclaredValue}"];
+  StandardCargo [label="{StandardCargo|IStackable}"];
+  PerishableCargo [label="{PerishableCargo|ExpirationDate; RequiredTemperatureC}"];
+  FragileCargo [label="{FragileCargo|RiskFactor; IStackable}"];
+  DangerousCargo [label="{DangerousCargo|HazardClass: 1..9}"];
+  OversizedCargo [label="OversizedCargo"];
+  {StandardCargo PerishableCargo FragileCargo DangerousCargo OversizedCargo} -> Cargo [arrowhead=empty];
+  IInsurable [label="{«interface» IInsurable|InsuredValue}"];
+  ITemperatureSensitive [label="{«interface» ITemperatureSensitive|RequiredTemperatureC}"];
+  Cargo -> IInsurable [style=dashed, arrowhead=empty, label="explicit"];
+  PerishableCargo -> ITemperatureSensitive [style=dashed, arrowhead=empty];
+ }
+ subgraph cluster_vehicle {
+  label="Иерархия транспорта"; fontname="DejaVu Sans"; color="#cbd5e1";
+  Vehicle [label="{«abstract» Vehicle|Id; RegistrationNumber; State; лимиты|CanCarry(); CanTravel(); CalculateDeliveryCost()}"];
+  Truck [label="{Truck|TollFactor}"];
+  RefrigeratorTruck [label="{RefrigeratorTruck|MinTemperatureC; MaxTemperatureC}"];
+  CargoPlane [label="{CargoPlane|запрет классов 1, 7}"];
+  CargoShip [label="{CargoShip|надбавка за негабарит}"];
+  DroneCourier [label="{«sealed» DroneCourier|MaxRangeKm}"];
+  {Truck RefrigeratorTruck CargoPlane CargoShip DroneCourier} -> Vehicle [arrowhead=empty];
+ }
+ Customer [label="{Customer|Id; Name; Contact|Orders: IReadOnlyCollection}"];
+ Order [label="{Order|Id; Status; TotalCost|Assign(); StartDelivery(); Complete(); Cancel()}"];
+ Route [label="{Route|Points; DistanceKm|EstimateTime()}"];
+ RoutePoint [label="{«struct» RoutePoint|X; Y|operator -; explicit string}"];
+ Customer -> Order [dir=both, arrowtail=odiamond, arrowhead=none, label="1 / 0..*"];
+ Order -> Cargo [dir=both, arrowtail=diamond, arrowhead=none, label="1..*"];
+ Order -> Vehicle [label="0..1 назначен"];
+ Order -> Route [dir=both, arrowtail=diamond, arrowhead=none];
+ Route -> RoutePoint [dir=both, arrowtail=diamond, arrowhead=none, label="2..*"];
+ DeliveryService [label="{DeliveryService|Vehicles; Customers; Orders; Revenue|CreateOrder(); AssignCheapest(); StartDelivery(); Complete(); Cancel()}"];
+ Validator [label="{CargoCompatibilityValidator|ValidateSet(); CanLoad(); ValidateForVehicle()}"];
+ Tariff [label="{«interface» ITariffStrategy|Calculate()}"];
+ StandardTariff [label="StandardTariff"]; ExpressTariff [label="ExpressTariff"]; HeavyCargoTariff [label="HeavyCargoTariff"];
+ {StandardTariff ExpressTariff HeavyCargoTariff} -> Tariff [style=dashed, arrowhead=empty];
+ Cost [label="{«interface» IDeliveryCost|Total; Steps; Describe()}"];
+ BaseCost [label="BaseDeliveryCost"]; Decorator [label="{«abstract» CostDecorator|Inner: IDeliveryCost}"];
+ {BaseCost Decorator} -> Cost [style=dashed, arrowhead=empty];
+ Decorator -> Cost [label="оборачивает"];
+ InsuranceCost -> Decorator [arrowhead=empty]; UrgencyCost -> Decorator [arrowhead=empty]; PackagingCost -> Decorator [arrowhead=empty];
+ DeliveryService -> Order [label="координирует"];
+ DeliveryService -> Validator [style=dashed]; DeliveryService -> Tariff [style=dashed]; DeliveryService -> Cost [style=dashed];
+ ConsoleNotifier -> DeliveryService [style=dashed, label="подписка"];
+ FileLogger -> DeliveryService [style=dashed, label="подписка"];
+ JsonStateStore -> DeliveryService [style=dashed, label="save / load"];
+}
